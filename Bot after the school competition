@@ -1,0 +1,221 @@
+using PenguinGame;
+using System;
+
+
+namespace MyBot {
+    /// <summary>
+    /// This is an example for a bot.
+    /// </summary>
+    public class TutorialBot : ISkillzBot {
+        /// <summary>
+        /// Makes the bot run a single turn.
+        /// </summary>
+        /// <param name="game">the current game state</param>
+        
+        public void DoTurn (Game game) {
+            
+            Iceberg[] myIcebergs = game.GetMyIcebergs();
+            /*
+            if(game.Turn%5==0 ){
+                    Iceberg toUpGrade = myIcebergs[0];
+                    foreach( Iceberg berg in myIcebergs) {
+                        if(berg.PenguinAmount>toUpGrade.PenguinAmount){
+                            toUpGrade=berg;
+                        }
+                    }
+                    if(toUpGrade.CanUpgrade()){
+                        toUpGrade.Upgrade();
+                    }
+                }
+                */
+            // Go over all of my icebergs.
+            
+            for(int i = 0;i<myIcebergs.Length;i++)
+            {
+                // The iceberg we are going over.
+                Iceberg myIceberg = myIcebergs[i];
+                
+                bool waitForUpgrade =false;
+                
+                if(myIceberg.Level < myIceberg.UpgradeLevelLimit && (double)myIceberg.PenguinAmount/ (double) myIceberg.UpgradeCost >=0.9 )
+                {
+                    waitForUpgrade =true;   
+                    if(myIceberg.CanUpgrade() && (double)myIceberg.PenguinAmount/ (double)myIceberg.UpgradeCost >=1.05)
+                    {
+                    myIceberg.Upgrade();
+                    }
+                }
+                
+                if(!waitForUpgrade)
+                {
+                    int myPenguinAmount = myIceberg.PenguinAmount;
+
+                // Initializing the iceberg we want to send penguins to.
+                PenguinGroup[] groups = game.GetMyPenguinGroups();
+                Iceberg[] taken = new Iceberg[groups.Length];
+                
+                for(int j = 0; j<groups.Length;j++)
+                {
+                    taken[j] = groups[j].Destination;
+                }
+                
+                Iceberg destination = null;
+                destination = game.GetEnemyIcebergs()[0];
+
+                Iceberg[] allIcebergs = game.GetAllIcebergs();
+                
+                
+                for (int j=0;j<allIcebergs.Length;j++)
+                {
+                    if(allIcebergs[j].Owner!=game.GetMyself() && Value(myIceberg, destination,game)<Value(myIceberg,allIcebergs[j],game))
+                    {
+                       
+                        bool cancel = false;
+                        for(int k = 0; k<groups.Length;k++)
+                        {
+                            if(allIcebergs[j]==taken[k])
+                            {
+                                cancel=true;
+                            }
+                        }
+                        if(!cancel)
+                        {
+                             destination =allIcebergs[j];
+                        }                       
+                        
+                    }
+                    
+                }
+                
+
+
+                // If there are any neutral icebergs.
+                /*
+               Iceberg[] allIcebergs= game.GetAllIcebergs();
+               Iceberg closest = game.allIcebergsGetEnemyIcebergs()[0];
+               foreach( Iceberg berg in allIcebergs) {
+                if(berg != myIceberg && closest.GetTurnsTillArrival(myIceberg)>berg.GetTurnsTillArrival(myIceberg) && berg.Owner!=game.GetMyself())
+                {
+                    bool cancel = false;
+                    for(int j = 0; j<groups.Length;j++){
+                        if(berg==taken[j]){
+                            cancel=true;
+                        }
+                    }
+                    if(!cancel){
+                        closest=berg;
+                    }
+                }
+               }
+               
+               destination = closest;
+                */
+                
+                
+                
+                // The amount of penguins the target has.
+                int destinationPenguinAmount = destination.PenguinAmount;
+                // If my iceberg has more penguins than the target iceberg.
+                if (myPenguinAmount > PenguinsAtArrival(myIceberg,destination,game)*1.1) 
+                {
+                    
+                    // Send penguins to the target.
+                    // In order to take control of the iceberg we need to send one penguin more than is currently in the iceberg.
+                    System.Console.WriteLine(myIceberg + " sends "+ (destinationPenguinAmount *1.1) + " penguins to " + destination);
+                    if(!(myIceberg.AlreadyActed))
+                    {
+                        
+                        myIceberg.SendPenguins(destination, (int)(PenguinsAtArrival(myIceberg,destination,game) * 1.1));
+                        
+                    }
+                }
+                else if(myIcebergs.Length!=1 && (myIcebergs[i].PenguinAmount+myIcebergs[(i+1)%myIcebergs.Length].PenguinAmount)>PenguinsAtArrival(myIceberg,destination,game)*1.2)
+                {
+                
+                    Console.WriteLine(myIcebergs.Length);
+                     if (myPenguinAmount > PenguinsAtArrival(myIceberg,destination,game)*0.6 && myIcebergs[(i+1)%myIcebergs.Length].PenguinAmount > PenguinsAtArrival(myIceberg,destination,game)*0.6) 
+                    {
+                        myIceberg.SendPenguins (destination, (int)( PenguinsAtArrival(myIceberg,destination,game) *0.6));
+                        myIcebergs[(i+1)%myIcebergs.Length].SendPenguins (destination, (int)( PenguinsAtArrival(myIceberg,destination,game) *0.6));
+                    }
+                    
+                }
+                // The amount of penguins in my iceberg.
+                }
+            }
+        }
+        
+        int PenguinsAtArrival (Iceberg startIceberg, Iceberg destination, Game game)
+        {
+            int distance = startIceberg.GetTurnsTillArrival(destination);
+            int result;
+            if(destination.Owner == game.GetEnemy())
+            {
+                result= destination.PenguinAmount + distance * destination.PenguinsPerTurn;
+            }
+            else
+            {
+                result=destination.PenguinAmount;
+            }
+            
+            PenguinGroup[] groups = game.GetEnemyPenguinGroups();
+            for(int j = 0; j<groups.Length;j++)
+            {
+                   if(groups[j].Destination==destination)
+                   {
+                       result+= groups[j].PenguinAmount;
+                   }
+                }
+            
+            return result;
+        
+        }
+        
+        
+        double Value(Iceberg source ,Iceberg destination,Game game)
+        {
+            int distance = source.GetTurnsTillArrival(destination);
+            int level = destination.Level;
+            int pengs = PenguinsAtArrival(source,destination,game);
+            
+            //Console.WriteLine("level = {0} , distance = {1} , pengs = {2}",level,distance,pengs);
+            
+            return 10*level-(distance/1.5)-pengs/2.5;
+        }
+        
+        /*
+        Iceberg[] SortByDist(Iceberg start, Iceberg[] bergs){
+            PrintDists(bergs,start);
+            int numOfBergs = bergs.Length;
+            
+            Iceberg[] result= new Iceberg[numOfBergs];
+            
+            bool[] blacklist = new bool[numOfBergs];
+            
+            for(int i = 0; i<numOfBergs; i++){
+                int smallest = 0;
+                for(int j = 0; j<numOfBergs; j++){
+                    if(bergs[j].GetTurnsTillArrival(start) < bergs[smallest].GetTurnsTillArrival(start) && blacklist[j]==false){
+                        smallest = j;
+                    }
+                }
+                blacklist[smallest]=true;
+                result[i] = bergs[smallest];
+            }
+            
+            System.Console.WriteLine("Sorted");
+            PrintDists(result,start);
+            return result;
+        }
+        
+        void PrintDists(Iceberg[] print, Iceberg start){
+            for(int i=0;i<print.Length;i++){
+                System.Console.WriteLine(print[i].GetTurnsTillArrival(start));
+            }
+        }
+        */
+        
+        
+        
+    }
+}
